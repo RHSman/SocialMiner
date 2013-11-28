@@ -8,6 +8,7 @@ from time import *
 import string, os, sys, subprocess, time
 from sys import argv
 from collections import Counter
+#import keen_analytics as keenio
 
 
 harvest_list = ['transprovence']
@@ -61,6 +62,12 @@ def constructtweet(timelinetweets, keencollect, callaction, item):
 	times = tweet['created_at'] 
 	screen_names = tweet['user']['screen_name']
 	retweets = tweet['retweet_count'] 
+	print retweets
+# 	if retweets > 0:
+# 		#Need to call back out to Twitter to get 
+# 		retweetlist = keenio.get_retweeters(ids)
+# 		print retweetlist['ids']
+		
 	favorites_count = tweet['favorite_count'] 
 	hashtag_count = len(tweet['entities']['hashtags']) 
 
@@ -71,6 +78,7 @@ def constructtweet(timelinetweets, keencollect, callaction, item):
 	hashtags = [tags['text']for tags in tweet['entities']['hashtags']]	
 	user_mentions = [user_mention['screen_name'] for user_mention in tweet['entities']['user_mentions']]
 	urls = [urls['url'] for urls in tweet['entities']['urls']]	
+	
 
 	#accountdic = tweetcounts(screen_names, callaction)
 	
@@ -263,7 +271,7 @@ def tweetcounts(name,action):
 def competitors():
 	try:
 		#get users time line
-		competitors = ["responsetek","confirmit","Verint","Clarabridge","Medallia","NICE_Systems","SandSIV","transprovence"]
+		competitors = ["responsetek","confirmit","Verint","Clarabridge","Medallia","NICE_Systems","SandSIV"]
 		
 		outputList = []
 		print "we'll be searching and updating Keen IO with tweets from %s" % competitors
@@ -298,30 +306,9 @@ def whatkeywords():
 		counter = counter + updatescount
 	
 	return counter
-def keenmetrics_count(collectionname,filterprop,op,value):
-	return client.count(collectionname, filters=[{"property_name":filterprop,"operator": op,"property_value": value}])
 	
-def keenmetrics_avg(collectionname,targprop,filterprop,op,value):
-	return client.average(collectionname, target_property=targprop,filters=[{"property_name":filterprop,"operator": op,"property_value": value}])
-	
-def keenmetrics_sum(collectionname,targprop,filterprop,op,value):
-	return client.sum(collectionname, target_property=targprop, filters=[{"property_name" : filterprop,"operator" : op,"property_value" : value}])
-		
-def checkout():
-	i = keenmetrics_sum(keenmetrics,"retweet_count","screen_names","eq","SandSIV")
-	print i
-	j = keenmetrics_count(keenmetrics,"screen_names","eq","SandSIV")
-	print j
-	retweet_rate = j/i
-	print retweet_rate
-	
-def keenmetrics1():
-	count = keenmetrics_count(keentweets,"screen_names","eq","SandSIV")
-	avg = keenmetrics_avg(keentweets,"retweet_count","screen_names","eq","SandSIV")
-	sum = keenmetrics_sum(keentweets,"retweet_count","screen_names","eq","SandSIV")
-	print count
-	print avg
-	print sum
+
+
 	
 
 

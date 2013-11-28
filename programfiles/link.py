@@ -35,10 +35,11 @@ auth = linkedin.LinkedInDeveloperAuthentication(CONSUMER_KEY, CONSUMER_SECRET,
 #get list of unique id's from Keen.IO to check if we should write record
 def getidList(compname):
 	try:
-		return client.select_unique(keencollect,target_property="updateid", group_by="company",
-			filters=[{"property_name":"company","operator": "eq","property_value": compname}])
+		return client.select_unique(keencollect,target_property="data.updateid", group_by="company",
+			filters=[{"property_name":"competitor","operator": "eq","property_value": compname}])
 	except Exception, e:
 		print e
+		
 def jobupdate(job,name, id):
 
 	jobskeendic = ({"channel":"LinkedIn","competitor":name,"data":{"company":name,"id":id,"action": "job", 
@@ -49,7 +50,7 @@ def jobupdate(job,name, id):
 		"location":job["companyJobUpdate"]["job"]["locationDescription"]}})
 	
 	#put in keen
-	#client.add_event(keencollect, jobskeendic)
+	client.add_event(keencollect, jobskeendic)
 	
 	#give back the dict
 	return jobskeendic
@@ -63,36 +64,39 @@ def mainUpdate(statusUpdate,name, id):
 	
 		print "------------BOTH-----------------"
 		#create dic for Keen insertion
-		commentskeendic = dict({"company":name,"id":id,"action": "content",
-			"title":statusUpdate["content"]["title"],"url":statusUpdate["content"]["submittedUrl"],
+		commentskeendic = ({"channel":"LinkedIn","competitor":name,"data":{"company":name,
+			"id":id,"action": "content","title":statusUpdate["content"]["title"],
+			"url":statusUpdate["content"]["submittedUrl"],
 			"content descripion":(statusUpdate["content"]["description"] if statusUpdate["content"].has_key("description") else None),
 			"comment":statusUpdate["comment"], "timestamp":statusUpdate["timestamp"],
-			"updateid":statusUpdate["id"], "source":statusUpdate["source"]})
+			"updateid":statusUpdate["id"], "source":statusUpdate["source"]}})
 	
 	elif statusUpdate.has_key("comment") and not statusUpdate.has_key("content"):
 	
 		print "---------ONLY COMMENT------------"
 		print statusUpdate.keys()
 		#create dic for Keen insertion
-		commentskeendic = dict({"company":name,"id":id,"action": "content",
+		commentskeendic = ({"channel":"LinkedIn","competitor":name,"data":{"company":name,
+			"id":id,"action": "content",
 			"title":None,"url":None,
 			"content descripion":None,
 			"comment":statusUpdate["comment"], "timestamp":statusUpdate["timestamp"],
-			"updateid":statusUpdate["id"], "source":statusUpdate["source"]})
+			"updateid":statusUpdate["id"], "source":statusUpdate["source"]}})
 		
 	elif statusUpdate.has_key("content") and not statusUpdate.has_key("comment"):
 		print "---------ONLY CONTENT------------"
-		commentskeendic = dict({"company":name,"id":id,"action": "content",
+		commentskeendic = ({"channel":"LinkedIn","competitor":name,"data":{"company":name,
+			"id":id,"action": "content",
 			"title":statusUpdate["content"]["title"],"url":statusUpdate["content"]["submittedUrl"],
 			"content descripion":statusUpdate["content"]["description"],
 			"comment":None, "timestamp":statusUpdate["timestamp"],
-			"updateid":statusUpdate["id"], "source":None})
+			"updateid":statusUpdate["id"], "source":None}})
 		
 	else:
 		print "---- - - - Nothing ERROR somewhere- - - ----"	
 		commentskeendic = dict({"error":"no comments or content from linkedIn"})
 	
-	#client.add_event(keencollect, commentskeendic)
+	client.add_event(keencollect, commentskeendic)
 	
 	#give back the dictionary
 	return commentskeendic
@@ -100,8 +104,9 @@ def mainUpdate(statusUpdate,name, id):
 def competitorlist():
 	# test id's 48781,1191295: Should turn this into a class
 	name = ["Clarabridge","SandSIV Group","NICE Systems","Verint","ResponseTek",
-	"Confirmit","Medallia Inc"]
+		"Confirmit","Medallia Inc"]
 	id = [48781,1191295,4728,3667,43086,10558,49697]
+
 	return name, id
 	
 	
@@ -112,6 +117,7 @@ def main():
 	#list to store returned items
 	updatedList =[]
 	print compname
+	update = False
 	for compid in ids:
 	# 	# Pass it in to the app...
 		
@@ -120,26 +126,52 @@ def main():
 		
 		#get list of updateids from KeenIO to cross check
 		compupdateIds = getidList(compname[counter])
-		print compupdateIds[0]["result"]
-		
+		try:
+			print compupdateIds[0]["result"]
+		except:
+			print "no entry: Creating"
+			#means no entry in keen, add entry
+			client.add_event(keencollect, {"channel":"LinkedIn","competitor":compname[counter],"data":None})	
+			compupdateIds = getidList(compname[counter])
+			print compupdateIds[0]["result"]
+			
 		for a in updates["values"]:
 			if a["updateContent"].has_key("companyStatusUpdate"):
-				print "Comp Status Update"
-				print a["updateContent"]["companyStatusUpdate"]["share"]["id"] not in compupdateIds[0]["result"]
-				if a["updateContent"]["companyStatusUpdate"]["share"]["id"] not in compupdateIds[0]["result"]:
+
+				for test in compupdateIds[0]["result"]:
+					if test == a["updateContent"]["companyStatusUpdate"]["share"]["id"]:
+
+						update = False
+						break
+					else:
+						update = True 	
+				if update:
 					updatedList.append({"channel":"LinkedIn","competitor":compname[counter],
 					"data":mainUpdate(a["updateContent"]["companyStatusUpdate"]["share"],compname[counter],compid)})
 					print "create item"
+				else:
+					print "Duplicate item"	
 
 			
 			elif a["updateContent"].has_key("companyJobUpdate"):
-				print "Job Update"
+
 				print "id %r" % a["updateContent"]["companyJobUpdate"]["job"]["id"]
-				print a["updateContent"]["companyJobUpdate"]["job"]["id"] not in compupdateIds[0]["result"]
-				if a["updateContent"]["companyJobUpdate"]["job"]["id"] not in compupdateIds[0]["result"]:
+				
+				for tester in compupdateIds[0]["result"]:
+					print "Idlist item is %s" % tester
+					print "updateId is %s" % a["updateContent"]["companyJobUpdate"]["job"]["id"]
+					if tester == a["updateContent"]["companyJobUpdate"]["job"]["id"]:
+						update = False
+						break
+					else:
+						update = True	
+				if update:
+					print " \t- - - - - - -\n "
 					updatedList.append({"channel":"LinkedIn","competitor":compname[counter],
 						"data":jobupdate(a["updateContent"],compname[counter],compid)})
 					print "create job"
+				else: 
+					print "Duplicate job"	
 
 		
 		print counter
@@ -147,6 +179,10 @@ def main():
 
 	#return the updated list
 	return updatedList	
+	
+	
+	
+
 	
 
 
