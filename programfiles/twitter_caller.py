@@ -8,7 +8,7 @@ from time import *
 import string, os, sys, subprocess, time
 from sys import argv
 from collections import Counter
-#import keen_analytics as keenio
+import connections
 
 
 harvest_list = ['transprovence']
@@ -23,24 +23,20 @@ keenhashtags = "DenormHashtags"
 
 
 
-#Twitter connections
-APP_KEY = '3Yx2VyCQbFZn1hHJLqtoSw'
-APP_SECRET = 'o8wORp80ntQ8nh18vxWLfiy0USQEXtqIxkAOleseNZo'
-
-twitter = Twython(APP_KEY, APP_SECRET, oauth_version=2)
-ACCESS_TOKEN = twitter.obtain_access_token()
-
-#Keen Access items
-client = KeenClient(
-    project_id="52737d71d97b856d7300000b",
-    write_key="53241d769bc67a9926c2d39e0657849b94e39d7f1988914526981e5a2beb800847f3b479a14f35be28e2f7f067e66777e89c91f8a8d3f6e2447e4b91391c394695a330ca958b0c9b77831a2728c7b47dbd944277f08f18f5535b296fed3e4b7ec5607c00ae73edf5bb23c6d8752e500d",
-    read_key="0439e47fd0e67f6ccc869670b98e284e98802f481d4d3b2f9d05af160485094f8a4ca0e955ffacafb008818a7992136f51e677aef82e08aa3c850c79a3d4af1a787b19ec2f36309e11a798bae4eb5e067b01908b0463b2ea01349aae05e0e48417295a4088c2a786af43c585bd384844"
-)
+# #Twitter connections
+# APP_KEY = '3Yx2VyCQbFZn1hHJLqtoSw'
+# APP_SECRET = 'o8wORp80ntQ8nh18vxWLfiy0USQEXtqIxkAOleseNZo'
+# 
+# twitter = Twython(APP_KEY, APP_SECRET, oauth_version=2)
+# ACCESS_TOKEN = twitter.obtain_access_token()
 
 #Connect to Twitter
-twitter = Twython(APP_KEY, access_token=ACCESS_TOKEN)
+# twitter = Twython(APP_KEY, access_token=ACCESS_TOKEN)
 
-#Connect to Streaming Twitter API
+#Keen Access items
+client = connections.store_analytics()
+
+twitter = connections.twitterconnect()
 
 #get list of unique id's from Keen.IOto compare against to avoid duplicate entries
 def getidList(compname):
@@ -62,11 +58,6 @@ def constructtweet(timelinetweets, keencollect, callaction, item):
 	times = tweet['created_at'] 
 	screen_names = tweet['user']['screen_name']
 	retweets = tweet['retweet_count'] 
-	print retweets
-# 	if retweets > 0:
-# 		#Need to call back out to Twitter to get 
-# 		retweetlist = keenio.get_retweeters(ids)
-# 		print retweetlist['ids']
 		
 	favorites_count = tweet['favorite_count'] 
 	hashtag_count = len(tweet['entities']['hashtags']) 
@@ -79,8 +70,6 @@ def constructtweet(timelinetweets, keencollect, callaction, item):
 	user_mentions = [user_mention['screen_name'] for user_mention in tweet['entities']['user_mentions']]
 	urls = [urls['url'] for urls in tweet['entities']['urls']]	
 	
-
-	#accountdic = tweetcounts(screen_names, callaction)
 	
 	#Create master Dictionary
 	keendic = {"Id" : ids,
@@ -105,100 +94,101 @@ def constructtweet(timelinetweets, keencollect, callaction, item):
 	return keendic	
 
 		
-def toupdateornot(tweetobject,action,screenname):
-	#takes tweet object and checks for Id in Keen.IO
-	print tweetobject["id_str"]
-	try:
-		keenList = getidList(screenname)[0]["result"]
-	except:
-		keenList=[]
-		keenList.append(None)
-		
-	
-	#2 scenarios: Keywords or usertimelines
-	if action == "keywords":
-		keywordid = tweetobject['statuses']["id_str"]
-		if keywordid in keenList:
-			print "id %r in list" %keywordid
-			return False
-		else:
-			print "------create------"
-			return True
-	elif action == "User Timeline":
-		usertimeid = tweetobject["id_str"]
-		if usertimeid in keenList:
-			print "id %r in list" %usertimeid
-			return False
-			
-		else:
-			print "----Create----"	
-			return True
+# def toupdateornot(tweetobject,action,screenname):
+# 	#takes tweet object and checks for Id in Keen.IO
+# 	print tweetobject["id_str"]
+# 	try:
+# 		keenList = getidList(screenname)[0]["result"]
+# 	except:
+# 		keenList=[]
+# 		keenList.append(None)
+# 		
+# 	
+# 	#2 scenarios: Keywords or usertimelines
+# 	if action == "keywords":
+# 		keywordid = tweetobject['statuses']["id_str"]
+# 		if keywordid in keenList:
+# 			print "id %r in list" %keywordid
+# 			return False
+# 		else:
+# 			print "------create------"
+# 			return True
+# 	elif action == "User Timeline":
+# 		usertimeid = tweetobject["id_str"]
+# 		if usertimeid in keenList:
+# 			print "id %r in list" %usertimeid
+# 			return False
+# 			
+# 		else:
+# 			print "----Create----"	
+# 			return True
 			
 			
 
-def keywordharvest(keywords):
-		
-	try:
-		counter = 0
-		search_results = twitter.search(q=keywords, count=50)
-		#Get list of Id's
-		allIds = getidLists()
-		
-		for a in range(len(search_results["statuses"])):
-			if str(search_results["statuses"][a]["id"]) not in allIds:
-				print search_results["statuses"][a]["id"]
-				#Build dictionary
-				constructtweet(search_results["statuses"][a],keentweets,"keywords",keywords)
-				counter = counter +1
-			else:
-				print "tweet exists"
-
-		print "Done for keyword: %s" % keywords 	
-		
-		return counter
-	
-	except TwythonError as e:
-	
-		print e
+# def keywordharvest(keywords):
+# 		
+# 	try:
+# 		counter = 0
+# 		search_results = twitter.search(q=keywords, count=50)
+# 		#Get list of Id's
+# 		allIds = getidLists()
+# 		
+# 		for a in range(len(search_results["statuses"])):
+# 			if str(search_results["statuses"][a]["id"]) not in allIds:
+# 				print search_results["statuses"][a]["id"]
+# 				#Build dictionary
+# 				constructtweet(search_results["statuses"][a],keentweets,"keywords",keywords)
+# 				counter = counter +1
+# 			else:
+# 				print "tweet exists"
+# 
+# 		print "Done for keyword: %s" % keywords 	
+# 		
+# 		return counter
+# 	
+# 	except TwythonError as e:
+# 	
+# 		print e
 			
-def hastagaggregate(tweet):
-	try:
-		#get tag count and screen name
-		tagcount = len(tweet['entities']['hashtags'])
-		
-		#print "tagcoung %d" % tagcount
-		screen_name = tweet['user']['screen_name']
-		#print "screen_name %s" % screen_name
-		j=0
-		hashtags = []
-		#print "in aggregate with %s" % tweet['text']
-		#get tags in list
-		while j < tagcount:
-			#print j
-			hashtags.extend([tweet['entities']['hashtags'][j]['text']])
-			#create dictionary for Keen
-			keendic = {"Id": tweet['id_str'],
-				"ScreenName": screen_name, 
-				"hashtags": tweet['entities']['hashtags'][j]['text']
-					}
-			#client.add_event(keenhashtags, keendic)
-
-			j = j+1		
-
-		
-		return hashtags
-			
-			
-	except TwythonError as e:
-		
-		print e	
+# def hastagaggregate(tweet):
+# 	try:
+# 		#get tag count and screen name
+# 		tagcount = len(tweet['entities']['hashtags'])
+# 		
+# 		#print "tagcoung %d" % tagcount
+# 		screen_name = tweet['user']['screen_name']
+# 		#print "screen_name %s" % screen_name
+# 		j=0
+# 		hashtags = []
+# 		#print "in aggregate with %s" % tweet['text']
+# 		#get tags in list
+# 		while j < tagcount:
+# 			#print j
+# 			hashtags.extend([tweet['entities']['hashtags'][j]['text']])
+# 			#create dictionary for Keen
+# 			keendic = {"Id": tweet['id_str'],
+# 				"ScreenName": screen_name, 
+# 				"hashtags": tweet['entities']['hashtags'][j]['text']
+# 					}
+# 			#client.add_event(keenhashtags, keendic)
+# 
+# 			j = j+1		
+# 
+# 		
+# 		return hashtags
+# 			
+# 			
+# 	except TwythonError as e:
+# 		
+# 		print e	
 			
 def usertimeline(name):
 	try:
-		timelinetweets = twitter.get_user_timeline(screen_name=name, count=5, include_rts=0)
+		timelinetweets = twitter.get_user_timeline(screen_name=name, count=10, include_rts=0)
+		#pprint.pprint(timelinetweets)
 		#Get list of Id's
 		validIds = getidList(name)
-		
+		print validIds
 		#create return list
 		updatedList =[]
 		
@@ -212,66 +202,56 @@ def usertimeline(name):
 				dict = constructtweet(a, keentweets, "User Timeline", name)
 				updatedList.append({"channel":"twitter","competitor": name,"data": dict})
 				
-	
+		print pprint.pprint(updatedList)
 		return updatedList		
 		
 	except TwythonError as e:
 		 
 		print e
 		
-def tweetcounts(name,action):
-	try:
-		userdetails = twitter.show_user(screen_name=name)
-		statuses_count = userdetails['statuses_count']
-		followers_count = userdetails['followers_count']
-		user_id = userdetails['id']
-		friends = userdetails['friends_count']
-		#workout retweet rate. Keen API analysis
-		if action == "account":
-			avgretweet = keenmetrics_avg(keentweets,"retweet_count","screen_names","eq",name)
-			numbrecords = keenmetrics_count(keentweets,"screen_names","eq",name)
-			retweet_sum = keenmetrics_sum(keentweets,"retweet_count","screen_names","eq",name)
-		else:
-
-			avgretweet = None
-			numbrecords = None
-			retweet_sum = None	
-		
-		#retweet_rate = retweet_sum//numbrecords
-		#print avgretweet
-		#print "retweet: %r" % retweet_rate
-		
-		#print "totaltweets %d and followers %d, friends %d and retweet rate %r and sum of retweets %r (records %r)" % (statuses_count, followers_count, friends, avgretweet, retweet_sum, numbrecords)
-		#Ideal would be to get scope of depth (retweeted by whom and how many followers to they have?
-		#influencer rate
-		#Total number tweeted too
-		#Combine with click through rate of link (need correlation table)
-		
-		 
-	#Create master Dictionary
-		keendic = {"Id" : user_id,
-			"total_tweets": statuses_count,
-			"followers": followers_count,
-			"friends": friends,
-			"screen_names": name,
-			"action": "User_counts",
-			"retweet_rate": avgretweet,
-			"total_retweets": retweet_sum }
-		
-		#update Keen IO
-		#client.add_event(keenmetrics, keendic)
-		return keendic
-		
-	
-	except TwythonError as e:
-		
-		print e	
-				
+# def tweetcounts(name,action):
+# 	try:
+# 		userdetails = twitter.show_user(screen_name=name)
+# 		statuses_count = userdetails['statuses_count']
+# 		followers_count = userdetails['followers_count']
+# 		user_id = userdetails['id']
+# 		friends = userdetails['friends_count']
+# 		#workout retweet rate. Keen API analysis
+# 		if action == "account":
+# 			avgretweet = keenmetrics_avg(keentweets,"retweet_count","screen_names","eq",name)
+# 			numbrecords = keenmetrics_count(keentweets,"screen_names","eq",name)
+# 			retweet_sum = keenmetrics_sum(keentweets,"retweet_count","screen_names","eq",name)
+# 		else:
+# 
+# 			avgretweet = None
+# 			numbrecords = None
+# 			retweet_sum = None	
+# 				
+# 		 
+# 	#Create master Dictionary
+# 		keendic = {"Id" : user_id,
+# 			"total_tweets": statuses_count,
+# 			"followers": followers_count,
+# 			"friends": friends,
+# 			"screen_names": name,
+# 			"action": "User_counts",
+# 			"retweet_rate": avgretweet,
+# 			"total_retweets": retweet_sum }
+# 		
+# 		#update Keen IO
+# 		#client.add_event(keenmetrics, keendic)
+# 		return keendic
+# 		
+# 	
+# 	except TwythonError as e:
+# 		
+# 		print e	
+# 				
 	
 def competitors():
 	try:
 		#get users time line
-		competitors = ["responsetek","confirmit","Verint","Clarabridge","Medallia","NICE_Systems","SandSIV"]
+		competitors = connections.compList()
 		
 		outputList = []
 		print "we'll be searching and updating Keen IO with tweets from %s" % competitors
@@ -290,22 +270,37 @@ def competitors():
 	except Exception, e:
 		print e
 		
-def competitor(name):
-	#get users time line
-	#competitors = ["IMD_BSchool","INSEAD","LondonBSchool","HarvardHBS","ESADE","StanfordBiz","Columbia_Biz"]
-	print "we'll be searching and updating Keen IO with tweets from %s" % competitors
-	usertimeline(name)
-	tweetcounts(name)
+# def competitor(name):
+# 	try:
+# 		#get users time line
+# 		#competitors = ["IMD_BSchool","INSEAD","LondonBSchool","HarvardHBS","ESADE","StanfordBiz","Columbia_Biz"]
+# 		print "we'll be searching and updating Keen IO with tweets from %s" % competitors
+# 		outputList = []
+# 		timeOutlist = usertimeline(name)
+# 		pprint.pprint(timeOutlist)
+# 		if len(timeOutlist) > 0:
+# 			outputList.append(timeOutlist)
+# 			
+# 			#tweetcounts(name,"User Timeline")
+# 		print "FINAL - - - - -"
+# 		print "count of List output %d" % len(outputList)
+# 
+# 			#pprint.pprint (outputList)
+# 		return outputList
+# 	except Exception, e:
+# 		print e
+# 	
+# def whatkeywords():	
+# 	#get list of keywords to search for
+# 	counter = 0
+# 	for name in harvest_list:
+# 		print name
+# 		updatescount = keywordharvest(name)
+# 		counter = counter + updatescount
+# 	
+# 	return counter
 	
-def whatkeywords():	
-	#get list of keywords to search for
-	counter = 0
-	for name in harvest_list:
-		print name
-		updatescount = keywordharvest(name)
-		counter = counter + updatescount
-	
-	return counter
+competitors()	
 	
 
 

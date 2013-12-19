@@ -16,39 +16,24 @@ import mimetypes
 
 def emailGmailSender(user,pw,fromaddr ,tolist, sub, body):
 	try:
-		outputJSON = json.dumps(body,sort_keys=True, indent =4)
-		print outputJSON
-# 		headerList=[]
-# 		channelList=[]
-# 		dataList =[]
-# 		dataOutputs=[]
-# 		#Create the Pretty tables from Body
-# 		#print len(body)
-# 		for c in range(len(body)):
-# 			print "++++++"
-# 			for b in body[c]:
-# 				headerList.append(b['competitor'])
-# 				#print "Competitor %s" % b['competitor']
-# 				channelList.append(b['channel'])
-# 				#print "Data in %s is as follows" % b['channel']	
-# 				print len(b['data'])
-# 				dataList.append(len(b['data']))	
-# 
-# 									
-# 		ptable = PrettyTable(["Competitor","Channel","Text"])
-# 		ptable.padding_width = 2
-# 		for nrows in range(len(headerList)):
-# 			ptable.add_row([headerList[nrows],channelList[nrows],dataList[nrows]])
-# 
-# 		p2table = PrettyTable(["Competitor","Text"])
-# 		p2table.padding_width = 2
-# 		for nrows in range(len(headerList)):
-# 			p2table.add_row([headerList[nrows],channelList[nrows],dataList[nrows]])
-# 		
-# 		highlightoutput = ptable.get_string()	
 		
+		#get items from list
+		
+		twitterString = body[0].get_html_string() #twitter
 
+		linkedString = body[1].get_html_string() #linkedin
+		
+		rssString = body[2].get_html_string() #RSS
 
+		
+		htmlBody = """<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+		<html lang="en">
+		<head>
+    	<title>Test</title>
+		</head>
+		<body><h1>LinkedIn Updates</h1>"""+ linkedString +"""
+		<h1>Twitter Updates</h1>""" + twitterString+"""<h1>RSS Updates</h1>""" + rssString +"""</body></html>"""
+		
 		smtp_host = 'smtp.gmail.com'
 		smtp_port = 587
 		server = smtplib.SMTP()
@@ -57,13 +42,14 @@ def emailGmailSender(user,pw,fromaddr ,tolist, sub, body):
 		server.starttls()
 		server.login(user,pw)
 
-		msg = email.MIMEMultipart.MIMEMultipart()
+
+		msg = email.MIMEMultipart.MIMEMultipart('alternative')
 		msg['From'] = fromaddr
 		msg['To'] = email.Utils.COMMASPACE.join(tolist)
 		msg['Subject'] = sub  
     	
-		msg.attach(MIMEText(outputJSON))
-		msg.attach(MIMEText('\nsent via the awesomeness of python', 'plain'))
+		msg.attach(MIMEText(htmlBody, 'html','utf-8'))
+		#msg.attach(MIMEText('\nsent via the awesomeness of python', 'plain'))
 		server.sendmail(fromaddr,tolist,msg.as_string())
 	except Exception, e:
 		print "Error sending the email %r" % e 	

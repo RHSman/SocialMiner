@@ -1,3 +1,4 @@
+from linkedin import linkedin
 from twython import Twython, TwythonError
 from keen import *
 import string, json, pprint
@@ -16,8 +17,41 @@ def keentweets():
 	return keentweets
 
 def keenretweets():
-	return "Retweets"	
+	return "Retweets"
+	
+def keenlinkedin():
+	return "LinkedIn_Updates"	
 
+def compList():
+	return ["responsetek","confirmit","Verint","Clarabridge","Medallia","NICE_Systems","SandSIV"]		
+
+def linkedin_connect():
+	# Define CONSUMER_KEY, CONSUMER_SECRET,  
+	# USER_TOKEN, and USER_SECRET from the credentials 
+	# provided in your LinkedIn application
+
+	CONSUMER_KEY = '65j7nwm2nmgu'
+	CONSUMER_SECRET = 'j6Tcy1kDrwhb5eHU'
+	USER_TOKEN = 'e282ebb3-b1e6-4642-b963-8d10f3b8537d'
+	USER_SECRET = '4801d1d0-1798-4383-adcc-8b46d1737c3b'
+
+	RETURN_URL = '' # Not required for developer authentication
+
+	# Instantiate the developer authentication class
+	auth = linkedin.LinkedInDeveloperAuthentication(CONSUMER_KEY, CONSUMER_SECRET, 
+									USER_TOKEN, USER_SECRET, 
+									RETURN_URL, 
+									permissions=linkedin.PERMISSIONS.enums.values())
+									
+	return linkedin.LinkedInApplication(auth)
+		
+	
+def link_competitorlist():	
+	name = ["Clarabridge","SandSIV Group","NICE Systems","Verint","ResponseTek",
+		"Confirmit","Medallia Inc"]
+	id = [48781,1191295,4728,3667,43086,10558,49697]
+
+	return name, id							
 		
 #twitter connections	
 def twitterconnect():
@@ -27,8 +61,34 @@ def twitterconnect():
 
 	twitter = Twython(APP_KEY, APP_SECRET, oauth_version=2)
 	ACCESS_TOKEN = twitter.obtain_access_token()
+	
+	
 	#Connect to Twitter
 	twitter = Twython(APP_KEY, access_token=ACCESS_TOKEN)
 	return twitter
+	
+def emailreciepients():
+	return ['rhs@sandsiv.com', 'asif.hanafi@sandsiv.com']	
+	
+def email_connections():
+	return "rhs@sandsiv.com","kate-peter2"
+	
+def rss_list():
+	RSSfeedlist = {	"NICE_Systems": ["http://www.nice.com/news/nrss"],
+				"Verint":["http://blog.verint.com/topic/back-office-operations/rss.xml"
+					"http://blog.verint.com/topic/branch-office-operations/rss.xml",
+					"http://blog.verint.com/topic/contact-centers/rss.xml",
+					"http://blog.verint.com/topic/EMEA-Blogs/rss.xml",
+					"http://blog.verint.com/rss.xml",
+					"http://blog.verint.com/topic/enterprise-intelligence/rss.xml",
+					"http://blog.verint.com/topic/financial-compliance/rss.xml",
+					"http://blog.verint.com/topic/marketing--customer-care/rss.xml",
+					"http://blog.verint.com/topic/public-safety/rss.xml",
+					"http://blog.verint.com/topic/video-management-software/rss.xml",
+					"http://blog.verint.com/topic/voice-of-the-customer-analytics/rss.xml"],
+				"Clarabridge":["http://loyalty360.org/feeds/resource-news"],
+				"SandSIV":["http://www.customercentric.info/feed/"]		}
+	return RSSfeedlist 			
+		
 	
 	

@@ -1,36 +1,16 @@
-from linkedin import linkedin
 import json, pprint
 from prettytable import PrettyTable
 from oauthlib import *
-from keen import *
+import connections
 
-#KEEN access tokens
+
 #Keen Access items
-client = KeenClient(
-    project_id="52737d71d97b856d7300000b",
-    write_key="53241d769bc67a9926c2d39e0657849b94e39d7f1988914526981e5a2beb800847f3b479a14f35be28e2f7f067e66777e89c91f8a8d3f6e2447e4b91391c394695a330ca958b0c9b77831a2728c7b47dbd944277f08f18f5535b296fed3e4b7ec5607c00ae73edf5bb23c6d8752e500d",
-    read_key="0439e47fd0e67f6ccc869670b98e284e98802f481d4d3b2f9d05af160485094f8a4ca0e955ffacafb008818a7992136f51e677aef82e08aa3c850c79a3d4af1a787b19ec2f36309e11a798bae4eb5e067b01908b0463b2ea01349aae05e0e48417295a4088c2a786af43c585bd384844"
-)
+client = connections.store_analytics()
+
 
 #keen collection to append too
-keencollect = "LinkedIn_Updates"
+keencollect = connections.keenlinkedin()
 
-# Define CONSUMER_KEY, CONSUMER_SECRET,  
-# USER_TOKEN, and USER_SECRET from the credentials 
-# provided in your LinkedIn application
-
-CONSUMER_KEY = '65j7nwm2nmgu'
-CONSUMER_SECRET = 'j6Tcy1kDrwhb5eHU'
-USER_TOKEN = 'e282ebb3-b1e6-4642-b963-8d10f3b8537d'
-USER_SECRET = '4801d1d0-1798-4383-adcc-8b46d1737c3b'
-
-RETURN_URL = '' # Not required for developer authentication
-
-# Instantiate the developer authentication class
-auth = linkedin.LinkedInDeveloperAuthentication(CONSUMER_KEY, CONSUMER_SECRET, 
-                                USER_TOKEN, USER_SECRET, 
-                                RETURN_URL, 
-                                permissions=linkedin.PERMISSIONS.enums.values())
 
 #get list of unique id's from Keen.IO to check if we should write record
 def getidList(compname):
@@ -78,10 +58,10 @@ def mainUpdate(statusUpdate,name, id):
 		#create dic for Keen insertion
 		commentskeendic = ({"channel":"LinkedIn","competitor":name,"data":{"company":name,
 			"id":id,"action": "content",
-			"title":None,"url":None,
-			"content descripion":None,
 			"comment":statusUpdate["comment"], "timestamp":statusUpdate["timestamp"],
 			"updateid":statusUpdate["id"], "source":statusUpdate["source"]}})
+			
+			#removed 			"title":None,"url":None,"content descripion":None,
 		
 	elif statusUpdate.has_key("content") and not statusUpdate.has_key("comment"):
 		print "---------ONLY CONTENT------------"
@@ -89,8 +69,9 @@ def mainUpdate(statusUpdate,name, id):
 			"id":id,"action": "content",
 			"title":statusUpdate["content"]["title"],"url":statusUpdate["content"]["submittedUrl"],
 			"content descripion":statusUpdate["content"]["description"],
-			"comment":None, "timestamp":statusUpdate["timestamp"],
-			"updateid":statusUpdate["id"], "source":None}})
+			"timestamp":statusUpdate["timestamp"],
+			"updateid":statusUpdate["id"]}})
+		#removed 			"comment":None, , "source":None
 		
 	else:
 		print "---- - - - Nothing ERROR somewhere- - - ----"	
@@ -101,17 +82,82 @@ def mainUpdate(statusUpdate,name, id):
 	#give back the dictionary
 	return commentskeendic
 	
-def competitorlist():
-	# test id's 48781,1191295: Should turn this into a class
-	name = ["Clarabridge","SandSIV Group","NICE Systems","Verint","ResponseTek",
-		"Confirmit","Medallia Inc"]
-	id = [48781,1191295,4728,3667,43086,10558,49697]
-
-	return name, id
-	
 	
 def main():
-	compname,ids = competitorlist()
+	compname,ids = connections.link_competitorlist()
+	counter=0
+
+	#list to store returned items
+	updatedList =[]
+
+	update = False
+	for compid in ids:
+	# 	# Pass it in to the app...
+		
+		app = connections.linkedin_connect()
+		#linkedin.LinkedInApplication(connections.linkedin_connect())
+		updates = app.get_company_updates(compid,params={'count': 200})
+		
+		#get list of updateids from KeenIO to cross check
+		compupdateIds = getidList(compname[counter])
+		try:
+			print compupdateIds[0]["result"]
+		except:
+			print "no entry: Creating"
+			#means no entry in keen, add entry
+			client.add_event(keencollect, {"channel":"LinkedIn","competitor":compname[counter],"data":None})	
+			compupdateIds = getidList(compname[counter])
+			print compupdateIds[0]["result"]
+			
+		for a in updates["values"]:
+			print a["updateContent"].keys()
+			if a["updateContent"].has_key("companyStatusUpdate"):
+				print compupdateIds[0]["result"]
+				print a["updateContent"]["companyStatusUpdate"]["share"]["id"]
+				if len(compupdateIds[0]["result"]) > 0:
+					
+					for test in compupdateIds[0]["result"]:
+						if test == a["updateContent"]["companyStatusUpdate"]["share"]["id"]:
+
+							update = False
+							break
+						else:
+							update = True 	
+				else:
+					update = True
+								
+				if update:
+					updatedList.append(mainUpdate(a["updateContent"]["companyStatusUpdate"]["share"],compname[counter],compid))
+				
+					print "create item"
+
+
+			
+			elif a["updateContent"].has_key("companyJobUpdate"):
+
+				print "id %r" % a["updateContent"]["companyJobUpdate"]["job"]["id"]
+				if len(compupdateIds[0]["result"]) > 0:
+					for tester in compupdateIds[0]["result"]:
+						if tester == a["updateContent"]["companyJobUpdate"]["job"]["id"]:
+							update = False
+							break
+						else:
+							update = True	
+				else:
+					update = True			
+				if update:
+
+					updatedList.append(jobupdate(a["updateContent"],compname[counter],compid))
+					print "create job"
+
+		counter= counter +1
+
+	print updatedList
+	#return the updated list
+	return updatedList	
+	
+def namedComp(compname,ids):
+	
 	counter=0
 	print "in main"
 	#list to store returned items
@@ -133,6 +179,7 @@ def main():
 			#means no entry in keen, add entry
 			client.add_event(keencollect, {"channel":"LinkedIn","competitor":compname[counter],"data":None})	
 			compupdateIds = getidList(compname[counter])
+			
 			print compupdateIds[0]["result"]
 			
 		for a in updates["values"]:
@@ -179,6 +226,19 @@ def main():
 
 	#return the updated list
 	return updatedList	
+	
+def getAccountId(id):
+	app = connections.linkedin_connect()
+	updates = app.get_company_updates(id,params={'count': 200})		
+	print updates
+	
+
+	
+
+	
+
+	
+
 	
 	
 	
